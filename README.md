@@ -29,4 +29,8 @@ User searches "running shoes for seniors" → returns the 48 most relevant produ
 
 ## Team
 
-Gyula, Jian Gao, Hyuk Jin Chung
+Gyula Planky, Jian Gao, Hyuk Jin Chung
+
+
+## Preliminary Architecture
+<img width="8192" height="6999" alt="Untitled Diagram-2026-02-18-013721" src="https://github.com/user-attachments/assets/2c2ea3c6-ed8a-48fa-a84b-04c393847488" />
