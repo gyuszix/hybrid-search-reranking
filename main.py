@@ -1,7 +1,15 @@
 import pandas as pd
 from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, USE_SPLIT
 from signals.bm25 import compute_bm25_scores
+from signals.two_tower import compute_two_tower_scores
 from evaluation.metrics import ndcg_at_k
+
+
+def evaluate_signal(df, score_col, k=10):
+    df_sorted = df.sort_values(by=["query_id", score_col], ascending=[True, False])
+    score = ndcg_at_k(df_sorted, k=k)
+    print(f"{score_col} NDCG@{k}: {score:.4f}")
+    return score
 
 
 def main():
@@ -38,7 +46,6 @@ def main():
         df["product_bullet_point"].fillna("")
     )
 
-    # Rename columns for BM25 module
     df = df.rename(columns={
         "query": "query_text",
         "product_id": "item_id"
@@ -49,44 +56,38 @@ def main():
     print(df.groupby("query_id").size().describe())
 
     # ----------------------
-    # 5. Compute BM25
+    # 5. Compute signals
     # ----------------------
     bm25_df = compute_bm25_scores(df)
+    df = df.merge(bm25_df, on=["query_id", "item_id"])
 
-    df = df.merge(
-        bm25_df,
-        on=["query_id", "item_id"]
+    two_tower_df = compute_two_tower_scores(df)
+    df = df.merge(two_tower_df, on=["query_id", "item_id"], how="left")
+    df["two_tower_score"] = df["two_tower_score"].fillna(0.0)
+
+    # ----------------------
+    # 6. Hybrid score
+    # ----------------------
+    BM25_WEIGHT = 0.4
+    TWO_TOWER_WEIGHT = 0.6
+
+    df["hybrid_score"] = (
+        BM25_WEIGHT * df["bm25_score"] +
+        TWO_TOWER_WEIGHT * df["two_tower_score"]
     )
 
-    print("BM25 score distribution:")
-    print(df["bm25_score"].describe())
-
     # ----------------------
-    # 6. Convert ESCI label to numeric relevance
+    # 7. Convert ESCI label to numeric relevance
     # ----------------------
-    label_map = {
-        "E": 3,
-        "S": 2,
-        "C": 1,
-        "I": 0
-    }
-
+    label_map = {"E": 3, "S": 2, "C": 1, "I": 0}
     df["relevance"] = df["esci_label"].map(label_map)
 
     # ----------------------
-    # 7. Sort by BM25 score
+    # 8. Evaluate
     # ----------------------
-    df_sorted = df.sort_values(
-        by=["query_id", "bm25_score"],
-        ascending=[True, False]
-    )
-
-    # ----------------------
-    # 8. Evaluate NDCG@10
-    # ----------------------
-    score = ndcg_at_k(df_sorted, k=10)
-
-    print("BM25 NDCG@10:", score)
+    evaluate_signal(df, "bm25_score")
+    evaluate_signal(df, "two_tower_score")
+    evaluate_signal(df, "hybrid_score")
 
 
 if __name__ == "__main__":
