@@ -1,9 +1,10 @@
+import os
 import json
 import pandas as pd
 from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, USE_SPLIT
 # from signals.bm25 import compute_bm25_scores
 from signals.two_tower import compute_two_tower_scores
-from evaluation.metrics import ndcg_at_k
+from evaluation.metrics import ndcg_at_k, dcg
 
 
 def evaluate_signal(df, score_col, k=10):
@@ -96,9 +97,29 @@ def main():
     # evaluate_signal(df, "bm25_score")
     # evaluate_signal(df, "hybrid_score")
 
-    with open("results.json", "w") as f:
+    # ----------------------
+    # 9. Save outputs
+    # ----------------------
+    os.makedirs("output", exist_ok=True)
+
+    # Per-pair scores (matches bm25_scores.csv format)
+    two_tower_df.to_csv("output/two_tower_scores.csv", index=False)
+
+    # Per-query NDCG (matches bm25_query_ndcg.csv format)
+    query_ndcgs = []
+    for query_id, group in df.groupby("query_id"):
+        rel = group.sort_values("two_tower_score", ascending=False)["relevance"].values
+        ideal = sorted(rel, reverse=True)
+        dcg_val = dcg(rel, k=10)
+        idcg_val = dcg(ideal, k=10)
+        if idcg_val > 0:
+            query_ndcgs.append({"query_id": query_id, "ndcg": dcg_val / idcg_val})
+    pd.DataFrame(query_ndcgs).to_csv("output/two_tower_query_ndcg.csv", index=False)
+
+    with open("output/results.json", "w") as f:
         json.dump(results, f, indent=2)
-    print("Results saved to results.json")
+
+    print("All results saved to output/")
 
 
 if __name__ == "__main__":
