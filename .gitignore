@@ -8,5 +8,5 @@ __pycache__/
 .DS_Store
 esci-data/
 models/
-results.json
+output/
 
