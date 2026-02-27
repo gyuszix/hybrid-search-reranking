@@ -18,7 +18,7 @@ def encode_texts(model, texts, batch_size=256):
         show_progress_bar=True,   # helpful for large encodes
         convert_to_numpy=True,
         normalize_embeddings=True,
-        device=None  # SentenceTransformer auto-detects GPU
+        device="cuda"  # SentenceTransformer auto-detects GPU
     )
     return embeddings.astype(np.float32)
 
