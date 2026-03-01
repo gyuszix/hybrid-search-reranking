@@ -1,14 +1,14 @@
 import json
 import pandas as pd
+import os
 from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, USE_SPLIT
-# from signals.bm25 import compute_bm25_scores
+from signals.bm25 import compute_bm25_scores
 from signals.two_tower import compute_two_tower_scores
 from evaluation.metrics import ndcg_at_k
 
 
 def evaluate_signal(df, score_col, k=10):
-    df_sorted = df.sort_values(by=["query_id", score_col], ascending=[True, False])
-    score = ndcg_at_k(df_sorted, k=k)
+    score = ndcg_at_k(df, k=k, score_col=score_col)
     print(f"{score_col} NDCG@{k}: {score:.4f}")
     return score
 
@@ -63,8 +63,9 @@ def main():
     # ----------------------
     # 5. Compute signals
     # ----------------------
-    # bm25_df = compute_bm25_scores(df)
-    # df = df.merge(bm25_df, on=["query_id", "item_id"])
+    bm25_df = compute_bm25_scores(df)
+    df = df.merge(bm25_df, on=["query_id", "item_id"], how="left")
+    df["bm25_score"] = df["bm25_score"].fillna(0.0)
 
     two_tower_df = compute_two_tower_scores(df)
     df = df.merge(two_tower_df, on=["query_id", "item_id"], how="left")
@@ -73,12 +74,12 @@ def main():
     # ----------------------
     # 6. Hybrid score
     # ----------------------
-    # BM25_WEIGHT = 0.4
-    # TWO_TOWER_WEIGHT = 0.6
-    # df["hybrid_score"] = (
-    #     BM25_WEIGHT * df["bm25_score"] +
-    #     TWO_TOWER_WEIGHT * df["two_tower_score"]
-    # )
+    BM25_WEIGHT = 0.4
+    TWO_TOWER_WEIGHT = 0.6
+    df["hybrid_score"] = (
+        BM25_WEIGHT * df["bm25_score"] +
+       TWO_TOWER_WEIGHT * df["two_tower_score"]
+    )
 
     # ----------------------
     # 7. Convert ESCI label to numeric relevance
@@ -89,8 +90,11 @@ def main():
     # ----------------------
     # 8. Evaluate
     # ----------------------
+
     results = {
+        "bm25_score": evaluate_signal(df, "bm25_score"),
         "two_tower_score": evaluate_signal(df, "two_tower_score"),
+        "hybrid_score": evaluate_signal(df, "hybrid_score"),
     }
 
     # evaluate_signal(df, "bm25_score")

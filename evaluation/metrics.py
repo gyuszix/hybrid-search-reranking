@@ -10,12 +10,14 @@ def dcg(scores, k=10):
     return 0.0
 
 
-def ndcg_at_k(df, k=10):
+def ndcg_at_k(df, k=10, score_col="bm25_score"):
     ndcgs = []
 
     for _, group in df.groupby("query_id"):
-        rel = group["relevance"].values
-        ideal_rel = sorted(rel, reverse=True)
+        group_sorted = group.sort_values(by=score_col, ascending=False)
+
+        rel = group_sorted["relevance"].values
+        ideal_rel = np.sort(rel)[::-1]
 
         dcg_val = dcg(rel, k)
         idcg_val = dcg(ideal_rel, k)
@@ -23,4 +25,4 @@ def ndcg_at_k(df, k=10):
         if idcg_val > 0:
             ndcgs.append(dcg_val / idcg_val)
 
-    return np.mean(ndcgs)
+    return float(np.mean(ndcgs))
