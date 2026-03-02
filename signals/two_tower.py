@@ -154,3 +154,52 @@ def compute_two_tower_scores(df):
     )
 
     return scores_df
+
+def build_global_tt_index(df_products, model_name=MODEL_NAME):
+    """Builds a FAISS index over the entire product catalog."""
+    print("Building global Two-Tower index (this requires high RAM/VRAM)...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = SentenceTransformer(model_name, device=device)
+    
+    if 'item_text' not in df_products.columns:
+        df_products["item_text"] = (
+            df_products["product_title"].fillna("") + " " +
+            df_products["product_description"].fillna("") + " " +
+            df_products["product_bullet_point"].fillna("")
+        )
+        
+    item_ids = df_products['product_id'].tolist()
+    texts = [t if t.strip() else "unknown product" for t in df_products['item_text'].tolist()]
+    
+    print(f"Encoding {len(texts)} products for global index...")
+    embeddings = encode_texts(model, texts, batch_size=256)
+    embeddings = np.nan_to_num(embeddings, nan=0.0, posinf=0.0, neginf=0.0)
+    
+    dim = embeddings.shape[1]
+    faiss_index = faiss.IndexFlatIP(dim)
+    faiss_index.add(embeddings)
+    
+    return model, faiss_index, item_ids
+
+def search_tt_global(model, faiss_index, item_ids, query_text, k=TOP_K):
+    """Searches the global FAISS index for a single text query."""
+    q_emb = model.encode([query_text], convert_to_numpy=True, normalize_embeddings=True)
+    q_emb = np.nan_to_num(q_emb, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+    
+    # FAISS returns the raw scores (dot product) and the matching indices
+    raw_scores, top_k_indices = faiss_index.search(q_emb, k)
+    raw_scores = raw_scores[0]
+    top_k_indices = top_k_indices[0]
+    
+    # Min-Max normalize the top K scores
+    min_score, max_score = raw_scores.min(), raw_scores.max()
+    if max_score - min_score > 1e-8:
+        norm_scores = (raw_scores - min_score) / (max_score - min_score)
+    else:
+        norm_scores = np.zeros_like(raw_scores)
+        
+    results = [
+        {"product_id": str(item_ids[idx]), "semantic_score": float(norm_scores[i])}
+        for i, idx in enumerate(top_k_indices)
+    ]
+    return pd.DataFrame(results)
