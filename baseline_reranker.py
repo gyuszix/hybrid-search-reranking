@@ -5,29 +5,55 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import os
+from sklearn.model_selection import train_test_split
 
 # ==========================================
 # 1. Feature Extraction Pipeline
 # ==========================================
-def extract_esci_features(examples_path, products_path):
+def extract_esci_features(examples_path, products_path, bm25_csv_path, semantic_csv_path):
     print("Loading raw ESCI Parquet files...")
     df_ex = pd.read_parquet(examples_path)
     df_pr = pd.read_parquet(products_path)
     
     # Merge on product_id and locale
-    print("Merging datasets...")
+    print("Merging ESCI datasets...")
     df = pd.merge(df_ex, df_pr, how='inner', on=['product_id', 'product_locale'])
     
     # Filter strictly for the training split to avoid leaking test data
     df = df[df['split'] == 'train'].copy()
     
+    # Ensure join keys are strings to prevent Pandas merge errors
+    df['query_id'] = df['query_id'].astype(str)
+    df['product_id'] = df['product_id'].astype(str)
+
+    # --- INTEGRATING RETRIEVAL SCORES ---
+    print("Loading BM25 and Semantic scores from CSVs...")
+    
+    # Load BM25
+    df_bm25 = pd.read_csv(bm25_csv_path)
+    # Force column names regardless of what the CSV header literally says
+    df_bm25.columns = ['query_id', 'product_id', 'bm25_score']
+    df_bm25['query_id'] = df_bm25['query_id'].astype(str)
+    df_bm25['product_id'] = df_bm25['product_id'].astype(str)
+
+    # Load Semantic (Two-Tower)
+    df_sem = pd.read_csv(semantic_csv_path)
+    df_sem.columns = ['query_id', 'product_id', 'semantic_score']
+    df_sem['query_id'] = df_sem['query_id'].astype(str)
+    df_sem['product_id'] = df_sem['product_id'].astype(str)
+
+    print("Merging retrieval scores into main dataset...")
+    # Use LEFT merge: Keep all ESCI training rows. 
+    df = pd.merge(df, df_bm25, how='left', on=['query_id', 'product_id'])
+    df = pd.merge(df, df_sem, how='left', on=['query_id', 'product_id'])
+
+    # Fill missing retrieval scores. If the retrieval model didn't find it, the score is mathematically the worst possible.
+    df['bm25_score'] = df['bm25_score'].fillna(0.0)
+    df['semantic_score'] = df['semantic_score'].fillna(-1.0)
+    
     print(f"Extracting features for {len(df)} training rows. This may take a minute...")
     
-    # --- A. Relevance Features ---
-    # (In a real pipeline, you merge your actual BM25/Vector scores here. 
-    # We simulate them for the training setup so the code runs out-of-the-box)
-    df['bm25_score'] = np.random.uniform(0, 1, len(df))
-    df['semantic_score'] = np.random.uniform(-1, 1, len(df))
+    # --- A. Relevance Features (Now using actual data) ---
     
     # Exact word overlap ratio (intersection of words / query length)
     def calc_overlap(row):
@@ -78,25 +104,21 @@ class DeepESCIReranker(nn.Module):
         super(DeepESCIReranker, self).__init__()
         
         self.network = nn.Sequential(
-            # Layer 1: Expand to 128 dimensions to catch complex feature crossings
             nn.Linear(input_dim, 128),
-            nn.BatchNorm1d(128), # Normalizes outputs to stabilize training
+            nn.BatchNorm1d(128), 
             nn.ReLU(),
-            nn.Dropout(0.2),     # Drops 20% of neurons randomly to prevent overfitting
+            nn.Dropout(0.2),     
             
-            # Layer 2: Compress to 64
             nn.Linear(128, 64),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Dropout(0.2),
             
-            # Layer 3: Compress to 32
             nn.Linear(64, 32),
             nn.ReLU(),
             
-            # Layer 4: Output Score
             nn.Linear(32, 1),
-            nn.Sigmoid()         # Binds the final output between 0.0 and 1.0
+            nn.Sigmoid()         
         )
 
     def forward(self, x):
@@ -124,11 +146,17 @@ def train_model():
     examples_file = "esci-data/shopping_queries_dataset/shopping_queries_dataset_examples.parquet"
     products_file = "esci-data/shopping_queries_dataset/shopping_queries_dataset_products.parquet"
     
-    if not os.path.exists(examples_file):
-        print(f"Error: Could not find {examples_file}. Check your directory structure.")
-        return
+    # REPLACE THESE PATHS WITH YOUR ACTUAL GENERATED CSV FILES
+    bm25_csv_path = "bm25_scores.csv" 
+    semantic_csv_path = "two_tower_scores.csv"
+    
+    # Quick sanity check
+    for file_path in [examples_file, products_file, bm25_csv_path, semantic_csv_path]:
+        if not os.path.exists(file_path):
+            print(f"Error: Could not find {file_path}. Please check your paths.")
+            return None
         
-    df_train, feature_columns = extract_esci_features(examples_file, products_file)
+    df_train, feature_columns = extract_esci_features(examples_file, products_file, bm25_csv_path, semantic_csv_path)
     input_size = len(feature_columns)
     
     print(f"\nInitializing DataLoader with {input_size} features...")
@@ -141,13 +169,14 @@ def train_model():
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     
-    best_loss = float('inf') # Start with an infinitely high loss
+    best_loss = float('inf') 
     epochs = 5
     print("\nStarting Deep Training Loop...")
-    model.train()
     
     for epoch in range(epochs):
+        model.train() # Set to train mode at the start of each epoch
         total_loss = 0.0
+        
         for batch_x, batch_y in dataloader:
             optimizer.zero_grad()
             predictions = model(batch_x).squeeze()
@@ -165,8 +194,10 @@ def train_model():
             print("--> Network improved! Saving new best weights.")
         
     print("Training complete. Model is ready for evaluation.")
+    
     # Load the absolute best weights back into RAM before returning
     model.load_state_dict(torch.load("esci_reranker.pth"))
+    model.eval() # Set to evaluation mode for future inference
     return model
 
 if __name__ == "__main__":
