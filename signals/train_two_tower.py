@@ -21,7 +21,7 @@ from config import EXAMPLES_PATH, PRODUCTS_PATH
 MODEL_NAME = "sentence-transformers/msmarco-distilbert-base-v3"
 MODEL_SAVE_PATH = "models/two_tower_finetuned"
 LOCALE = "us"
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 NUM_EPOCHS = 1
 
 
