@@ -91,7 +91,7 @@ def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_
     df['query_length'] = df['query'].astype(str).apply(lambda x: len(x.split()))
     df['title_length'] = df['product_title'].astype(str).apply(lambda x: len(x.split()))
     df['has_brand'] = df['product_brand'].notna().astype(float)
-    df['bullet_count'] = df['product_bullet_point'].astype(str).apply(lambda x: len(x.split('\n')) if x != 'None' else 0)
+    df['bullet_count'] = df['product_bullet_point'].fillna("").astype(str).apply(lambda x: len(x.split('\n')) if x.strip() and x.strip() != 'None' else 0)
     
     prod_counts = df.groupby('product_id')['query_id'].transform('count')
     df['log_product_freq'] = np.log1p(prod_counts)
