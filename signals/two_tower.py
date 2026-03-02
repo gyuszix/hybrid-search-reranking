@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import pandas as pd
-import faiss
+# import faiss
 from sentence_transformers import SentenceTransformer
 from config import TOP_K
 
@@ -24,19 +24,19 @@ def encode_texts(model, texts, batch_size=256):
     return embeddings.astype(np.float32)
 
 
-def build_faiss_index(product_embeddings, use_gpu=False):
-    """
-    Build a FAISS index. Optionally move to GPU for faster search.
-    """
-    embedding_dim = product_embeddings.shape[1]
-    index = faiss.IndexFlatIP(embedding_dim)
-    index.add(product_embeddings)
+# def build_faiss_index(product_embeddings, use_gpu=False):
+#     """
+#     Build a FAISS index. Optionally move to GPU for faster search.
+#     """
+#     embedding_dim = product_embeddings.shape[1]
+#     index = faiss.IndexFlatIP(embedding_dim)
+#     index.add(product_embeddings)
 
-    if use_gpu and faiss.get_num_gpus() > 0:
-        gpu_res = faiss.StandardGpuResources()
-        index = faiss.index_cpu_to_gpu(gpu_res, 0, index)
+#     if use_gpu and faiss.get_num_gpus() > 0:
+#         gpu_res = faiss.StandardGpuResources()
+#         index = faiss.index_cpu_to_gpu(gpu_res, 0, index)
 
-    return index
+#     return index
 
 
 def compute_two_tower_scores(df):
