@@ -1,9 +1,15 @@
 data/
 outputs/
+venv/
 vevv/
 __pycache__/
+*/__pycache__/
 *.pyc
 .DS_Store
 esci-data/*
 *.pth
 *.csv
+esci-data/
+models/
+output/
+
