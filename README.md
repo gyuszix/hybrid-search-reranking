@@ -136,3 +136,35 @@ The test suite validates the two-tower retrieval logic against a small synthetic
 - **Semantic relevance** — the model ranks semantically relevant items higher than irrelevant ones (e.g. "running shoes" scores higher than "coffee maker" for a running shoes query)
 - **No duplicates** — each item appears only once per query
 - **Input validation** — passing a dataframe with missing required columns raises a `ValueError`
+
+## Recent restructuring
+
+The project folder structure was reorganized to make navigation easier. No logic was changed — only file locations and imports.
+
+### What moved where
+
+| Old location | New location | Why |
+|---|---|---|
+| `signals/bm25.py`, `signals/two_tower.py` | `retrieval/bm25.py`, `retrieval/two_tower.py` | "Signals" was vague — these are retrieval modules |
+| `signals/generate_bm25_scores.py` | `scripts/generate_bm25_scores.py` | Runnable scripts belong together |
+| `signals/generate_two_tower_scores.py` | `scripts/generate_two_tower_scores.py` | Same |
+| `signals/train_two_tower.py` | `scripts/train_two_tower.py` | Same |
+| `main.py` | `scripts/run_pipeline.py` | Keep root clean, scripts in one place |
+| `build_search_engine_indices.py` | `scripts/build_indices.py` | Same |
+| `query_complexity_metric/` | `analysis/` | Shorter name, added `__init__.py` |
+
+### `baseline_reranker.py` split into `reranking/`
+
+The 317-line monolith contained the model class, feature extraction, dataset class, and training loop all in one file. It's now three files:
+
+- **`reranking/model.py`** — `DeepESCIReranker` class (single source of truth)
+- **`reranking/features.py`** — `extract_esci_features()` + `PairwiseESCIDataset`
+- **`scripts/train_reranker.py`** — the training loop
+
+`DeepESCIReranker` was previously copy-pasted in `baseline_reranker.py`, `evaluation/evaluate_reranker.py`, and `tests/test_custom_search.py`. Now they all import from `reranking.model`.
+
+### Import cleanup
+
+- All `from signals.` imports updated to `from retrieval.`
+- Old relative imports (e.g. `from bm25 import`, `from metrics import`) changed to absolute (e.g. `from retrieval.bm25 import`, `from evaluation.metrics import`)
+- `sys.path` hacks standardized and placed before project imports in every file that needs them
