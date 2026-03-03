@@ -10,7 +10,7 @@ def main():
     df_pr = pd.read_parquet(PRODUCTS_PATH)
 
     # Use this for testing instead
-    # df_pr = pd.read_parquet(PRODUCTS_PATH)
+    # df_pr = pd.read_parquet(PRODUCTS_PATH).head(50000)
 
     df_pr['product_id'] = df_pr['product_id'].astype(str)
 
