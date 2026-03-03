@@ -35,43 +35,88 @@ Gyula Planky, Jian Gao, Hyuk Jin Chung
 ## Preliminary Architecture
 <img width="8192" height="6999" alt="Untitled Diagram-2026-02-18-013721" src="https://github.com/user-attachments/assets/2c2ea3c6-ed8a-48fa-a84b-04c393847488" />
 
+## Project Structure
 
-# Hybrid Search Reranking
+```
+.
+├── retrieval/          # First-stage retrieval (BM25 + Two-Tower)
+│   ├── bm25.py         # BM25 lexical scoring and index building
+│   └── two_tower.py    # Two-tower semantic scoring and index building
+├── reranking/          # Second-stage neural reranking
+│   ├── model.py        # DeepESCIReranker architecture
+│   └── features.py     # Feature extraction + PairwiseESCIDataset
+├── evaluation/         # Metrics and evaluation
+│   ├── metrics.py      # NDCG@K, DCG, Recall@K
+│   ├── evaluate_retrieval.py
+│   └── evaluate_reranker.py
+├── analysis/           # Query complexity analysis
+│   ├── concept_entropy.py
+│   └── idf_setup.py
+├── scripts/            # All runnable entry points
+│   ├── run_pipeline.py             # Main pipeline (load, score, evaluate)
+│   ├── build_indices.py            # Build BM25 + Two-Tower indices
+│   ├── generate_bm25_scores.py     # Generate BM25 scores for train/test
+│   ├── generate_two_tower_scores.py # Generate Two-Tower scores for train/test
+│   ├── train_two_tower.py          # Fine-tune the Two-Tower model
+│   └── train_reranker.py           # Train the neural reranker
+├── tests/
+├── models/             # Saved model weights (gitignored)
+├── output/             # Generated scores, predictions, indices (gitignored)
+├── esci-data/          # Amazon ESCI dataset (gitignored)
+└── config.py           # Global paths and settings
+```
 
-Hybrid product search system combining keyword matching (BM25) and semantic understanding (Two-Tower BERT) with a learned reranker.
+## How to run
 
-## What it does
+Everything is run from the project root. Follow these steps in order:
 
-User searches "running shoes for seniors" → returns the 48 most relevant products from 2.6M items.
+**Step 1 — Install dependencies**
+```bash
+pip install -r requirements.txt
+```
 
-## How it works
+**Step 2 — Fine-tune the Two-Tower model** (only needed once)
+```bash
+python scripts/train_two_tower.py
+```
+This trains the semantic encoder on ESCI data and saves weights to `models/two_tower_finetuned/`.
 
-1. **BM25** - finds products containing the search words
-2. **Two-Tower** - finds products with similar meaning (even without exact word matches)
-3. **Merge** - combines both result sets
-4. **Rerank** - neural network picks the best 48
+**Step 3 — Generate retrieval scores** (only needed once, or when data changes)
+```bash
+python scripts/generate_bm25_scores.py
+python scripts/generate_two_tower_scores.py
+```
+These produce `output/bm25_scores_{split}.csv` and `output/two_tower_scores_{split}.csv` for train and test.
 
-## Why both?
+**Step 4 — Build search indices** (only needed once)
+```bash
+python scripts/build_indices.py
+```
+Pre-computes BM25 and FAISS indices for fast retrieval at search time.
 
-| BM25 wins | Neural wins |
-|-----------|-------------|
-| "iPhone 15 Pro Max" | "gift for outdoorsy dad" |
-| "SKU-12345" | "comfy WFH chair" |
+**Step 5 — Train the reranker**
+```bash
+python scripts/train_reranker.py
+```
+Trains the neural reranker using the scores from Step 3. Saves the best model to `output/best_esci_reranker.pth`.
 
-## Tech stack
+**Step 6 — Evaluate**
+```bash
+python evaluation/evaluate_retrieval.py
+python evaluation/evaluate_reranker.py
+```
+Prints NDCG@10 and Recall@K for the retrieval baselines and the reranker.
 
-- Python, PyTorch
-- BERT (embeddings)
-- FAISS (fast vector search)
-- rank_bm25 (keyword search)
+**Step 7 — Run the full pipeline** (optional)
+```bash
+python scripts/run_pipeline.py
+```
 
-## Team
-
-Gyula Planky, Jian Gao, Hyuk Jin Chung
-
-
-## Preliminary Architecture
-<img width="8192" height="6999" alt="Untitled Diagram-2026-02-18-013721" src="https://github.com/user-attachments/assets/2c2ea3c6-ed8a-48fa-a84b-04c393847488" />
+**Try an interactive search** (requires Steps 2-5 completed)
+```bash
+python tests/test_custom_search.py
+```
+Type a query and see ranked results from the full pipeline.
 
 ## Tests
 
