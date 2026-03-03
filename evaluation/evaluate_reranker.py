@@ -1,43 +1,20 @@
 import pandas as pd
 import numpy as np
 import torch
-import torch.nn as nn
 import os
 import sys
 import json
 from nltk.stem import PorterStemmer
-from metrics import ndcg_at_k, recall_at_k
 
-# Get the absolute path to the directory one level up
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from evaluation.metrics import ndcg_at_k, recall_at_k
 from config import EXAMPLES_PATH, PRODUCTS_PATH, ROOT_DIR
+from reranking.model import DeepESCIReranker
 
 # ==========================================
-# 1. The Exact Same Model Architecture
-# ==========================================
-# (PyTorch requires the structure to be identical to load the .pth weights)
-class DeepESCIReranker(nn.Module):
-    def __init__(self, input_dim):
-        super(DeepESCIReranker, self).__init__()
-        
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.BatchNorm1d(64), 
-            nn.ReLU(),
-            
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            
-            nn.Linear(32, 1) # Outputs a raw adjustment value
-        )
-
-    def forward(self, x):
-        final_raw_score = self.mlp(x)
-        return torch.sigmoid(final_raw_score)
-
-# ==========================================
-# 2. Test Feature Extraction
+# Test Feature Extraction
 # ==========================================
 def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_csv_path):
     print("Loading raw ESCI Parquet files...")

@@ -1,10 +1,11 @@
 import pandas as pd
 import os
 import sys
-from metrics import ndcg_at_k, recall_at_k
 
-# Get the absolute path to the directory one level up
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from evaluation.metrics import ndcg_at_k, recall_at_k
 from config import EXAMPLES_PATH, ROOT_DIR
 
 def evaluate_predictions(scores_csv_path, df_truth, score_col, k_ndcg=10, k_recall=150):
