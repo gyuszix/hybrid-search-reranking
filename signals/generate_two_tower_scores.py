@@ -59,7 +59,7 @@ def main():
             continue
             
         # Save to a distinct CSV file
-        output_file = f"{ROOT_DIR}/output/two_tower_scores_{split}.csv"
+        output_file = f'{ROOT_DIR}/output/two_tower_scores_{split}.csv'
         two_tower_df.to_csv(output_file, index=False)
         print(f"Successfully saved {len(two_tower_df)} Two-Tower scores to {output_file}")
 
