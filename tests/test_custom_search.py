@@ -119,8 +119,8 @@ if __name__ == "__main__":
     # Initialize the engine once
     engine = SearchPipeline(
         products_path=f'{ROOT_DIR}/{PRODUCTS_PATH}',
-        weights_path=f"{ROOT_DIR}/output/best_esci_reranker.pth",
-        stats_path=f"{ROOT_DIR}/output/normalization_stats.json"
+        weights_path=f'{ROOT_DIR}/output/best_esci_reranker.pth',
+        stats_path=f'{ROOT_DIR}/output/normalization_stats.json'
     )
     
     print("==================================================")
