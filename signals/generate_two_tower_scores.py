@@ -1,12 +1,16 @@
 import os
 import pandas as pd
-from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION
-from signals.two_tower import compute_two_tower_scores
+import sys
+from two_tower import compute_two_tower_scores
+
+# Get the absolute path to the directory one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, ROOT_DIR
 
 def main():
     print("Loading raw ESCI data for Two-Tower scoring...")
-    df_examples = pd.read_parquet(EXAMPLES_PATH)
-    df_products = pd.read_parquet(PRODUCTS_PATH)
+    df_examples = pd.read_parquet(f'{ROOT_DIR}/{EXAMPLES_PATH}')
+    df_products = pd.read_parquet(f'{ROOT_DIR}/{PRODUCTS_PATH}')
 
     if USE_SMALL_VERSION:
         print("Using small version of dataset...")
@@ -33,9 +37,6 @@ def main():
         "product_id": "item_id"
     })
 
-    # Ensure output directory exists
-    os.makedirs("output", exist_ok=True)
-
     # Loop through both splits to generate separate CSVs
     for split in ['train', 'test']:
         print(f"\n--- Processing '{split}' split ---")
@@ -58,7 +59,7 @@ def main():
             continue
             
         # Save to a distinct CSV file
-        output_file = f"output/two_tower_scores_{split}.csv"
+        output_file = f"{ROOT_DIR}/output/two_tower_scores_{split}.csv"
         two_tower_df.to_csv(output_file, index=False)
         print(f"Successfully saved {len(two_tower_df)} Two-Tower scores to {output_file}")
 
