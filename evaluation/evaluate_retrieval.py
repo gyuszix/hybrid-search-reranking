@@ -1,10 +1,11 @@
 import pandas as pd
 import os
 import sys
-# Add root to path so we can import metrics reliably
-sys.path.append(os.getcwd())
-from config import EXAMPLES_PATH
-from evaluation.metrics import ndcg_at_k, recall_at_k
+from metrics import ndcg_at_k, recall_at_k
+
+# Get the absolute path to the directory one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import EXAMPLES_PATH, ROOT_DIR
 
 def evaluate_predictions(scores_csv_path, df_truth, score_col, k_ndcg=10, k_recall=150):
     try:
@@ -55,9 +56,12 @@ def main():
     print("BASELINE EVALUATION (NDCG@10 & Recall@150)")
     print("="*50)
 
+    bm_file_path = os.path.join(ROOT_DIR, "output", "bm25_scores_test.csv")
+    tt_file_path = os.path.join(ROOT_DIR, "output", "two_tower_scores_test.csv")
+
     # 1. Evaluate BM25
     bm25_ndcg, bm25_recall = evaluate_predictions(
-        "output/bm25_scores_test.csv", 
+        bm_file_path, 
         df_test_truth, 
         "bm25_score"
     )
@@ -65,7 +69,7 @@ def main():
 
     # 2. Evaluate Two-Tower
     tt_ndcg, tt_recall = evaluate_predictions(
-        "output/two_tower_scores_test.csv", 
+        tt_file_path, 
         df_test_truth, 
         "two_tower_score"
     )

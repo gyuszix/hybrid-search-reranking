@@ -6,10 +6,11 @@ import os
 import sys
 import json
 from nltk.stem import PorterStemmer
-from config import EXAMPLES_PATH, PRODUCTS_PATH
-# Add root to path so we can import metrics
-sys.path.append(os.getcwd())
-from evaluation.metrics import ndcg_at_k
+from metrics import ndcg_at_k
+
+# Get the absolute path to the directory one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from config import EXAMPLES_PATH, PRODUCTS_PATH, ROOT_DIR
 
 # ==========================================
 # 1. The Exact Same Model Architecture
@@ -115,23 +116,24 @@ def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_
 # ==========================================
 # 3. Main Evaluation Loop
 # ==========================================
-def evaluate_model(model_weights_path="output/best_esci_reranker.pth"):
+def evaluate_model(model_weights_path):
     examples_file = EXAMPLES_PATH
     products_file = PRODUCTS_PATH
-    bm25_csv_path = "output/bm25_scores_test.csv" 
-    semantic_csv_path = "output/two_tower_scores_test.csv"
+    bm25_csv_path = os.path.join(ROOT_DIR, "output", "bm25_scores_test.csv")
+    semantic_csv_path = os.path.join(ROOT_DIR, "output", "two_tower_scores_test.csv")
     
     df_test, feature_cols = extract_test_features(examples_file, products_file, bm25_csv_path, semantic_csv_path)
 
     # Load the exact normalization stats from training
     print("Loading training normalization stats...")
+    norm_stats = os.path.join(ROOT_DIR, "output", "normalization_stats.json")
     try:
-        with open("output/normalization_stats.json", "r") as f:
+        with open(norm_stats, "r") as f:
             stats = json.load(f)
         train_mean = np.array(stats["mean"])
         train_std = np.array(stats["std"])
     except FileNotFoundError:
-        print("[!] ERROR: normalization_stats.json not found. Run training first.")
+        print("ERROR: normalization_stats.json not found. Run training first.")
         return
     
     features_raw = df_test[feature_cols].values
@@ -163,4 +165,5 @@ def evaluate_model(model_weights_path="output/best_esci_reranker.pth"):
     df_test[['query', 'product_title', 'predicted_score', 'esci_label']].to_csv("output/final_reranker_test_predictions.csv", index=False)
     
 if __name__ == "__main__":
-    evaluate_model("output/best_esci_reranker.pth") # Make sure the file name matches
+    reranker_model = os.path.join(ROOT_DIR, "output", "best_esci_reranker.pth")
+    evaluate_model(reranker_model) # Make sure the file name matches
