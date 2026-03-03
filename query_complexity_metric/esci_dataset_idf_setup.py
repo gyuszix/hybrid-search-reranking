@@ -55,7 +55,7 @@ if __name__ == "__main__":
     
     output_dir = os.path.join(ROOT_DIR, "output")
     # Save these clean splits to CSV so you don't have to run this merge every time
-    train_data.to_csv(os.path.join(f'{output_dir}/esci_train_clean.csv'), index=False)
-    val_data.to_csv(os.path.join(f'{output_dir}/esci_val_clean.csv'), index=False)
-    test_data.to_csv(os.path.join(f'{output_dir}/esci_test_clean.csv'), index=False)
+    train_data.to_csv(f'{output_dir}/esci_train_clean.csv', index=False)
+    val_data.to_csv(f'{output_dir}/esci_val_clean.csv', index=False)
+    test_data.to_csv(f'{output_dir}/esci_test_clean.csv', index=False)
     print("Saved clean splits to CSV!")
