@@ -10,7 +10,9 @@
 import os
 import pandas as pd
 from torch.utils.data import DataLoader
-from sentence_transformers import SentenceTransformer, InputExample, losses, evaluation
+from sentence_transformers import SentenceTransformer, InputExample, losses
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import EXAMPLES_PATH, PRODUCTS_PATH
 
 # ----------------------
@@ -19,16 +21,9 @@ from config import EXAMPLES_PATH, PRODUCTS_PATH
 MODEL_NAME = "sentence-transformers/msmarco-distilbert-base-v3"
 MODEL_SAVE_PATH = "models/two_tower_finetuned"
 LOCALE = "us"
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 NUM_EPOCHS = 1
 
-# Map ESCI labels to similarity scores
-ESCI_LABEL2SCORE = {
-    "E": 1.0,   # Exact
-    "S": 0.1,   # Substitute
-    "C": 0.01,  # Complement
-    "I": 0.0,   # Irrelevant
-}
 
 def main():
 
@@ -44,10 +39,12 @@ def main():
     df = df[df["split"] == "train"]
     df = df[df["product_locale"] == LOCALE]
 
-    df["score"] = df["esci_label"].map(ESCI_LABEL2SCORE)
+    # Filter to ONLY positive examples (Exact or Substitute)
+    # MNRL expects positive pairs. It creates negatives from other pairs in the batch.
+    df = df[df["esci_label"].isin(["E", "S"])]
     df["item_text"] = df["product_title"].fillna("")
 
-    print(f"Training samples: {len(df)}")
+    print(f"Training samples (Positives only): {len(df)}")
 
     # ----------------------
     # 2. Build training examples
@@ -55,10 +52,10 @@ def main():
     train_samples = []
     for _, row in df.iterrows():
         train_samples.append(InputExample(
-            texts=[row["query"], row["item_text"]],
-            label=float(row["score"])
+            texts=[row["query"], row["item_text"]]
         ))
 
+    # Shuffle is CRITICAL for MNRL to ensure diverse in-batch negatives
     train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=BATCH_SIZE, drop_last=True)
 
     # ----------------------
@@ -66,7 +63,7 @@ def main():
     # ----------------------
     print(f"Loading model: {MODEL_NAME}")
     model = SentenceTransformer(MODEL_NAME)
-    train_loss = losses.CosineSimilarityLoss(model=model)
+    train_loss = losses.MultipleNegativesRankingLoss(model=model)
 
     # ----------------------
     # 4. Train
