@@ -53,6 +53,7 @@ if __name__ == "__main__":
     dir_file_path = os.path.join(ROOT_DIR, "esci-data", "shopping_queries_dataset")
     train_data, val_data, test_data = load_and_split_esci_data(dir_file_path)
     
+    os.makedirs(f'{ROOT_DIR}/output', exist_ok=True)
     output_dir = os.path.join(ROOT_DIR, "output")
     # Save these clean splits to CSV so you don't have to run this merge every time
     train_data.to_csv(f'{output_dir}/esci_train_clean.csv', index=False)

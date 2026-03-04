@@ -59,6 +59,7 @@ def main():
             continue
             
         # Save to a distinct CSV file
+        os.makedirs(f'{ROOT_DIR}/output', exist_ok=True)
         output_file = f'{ROOT_DIR}/output/bm25_scores_{split}.csv'
         bm25_df.to_csv(output_file, index=False)
         print(f"Successfully saved {len(bm25_df)} BM25 scores to {output_file}")

@@ -96,8 +96,8 @@ def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_
 def evaluate_model(model_weights_path):
     examples_file = f'{ROOT_DIR}/{EXAMPLES_PATH}'
     products_file = f'{ROOT_DIR}/{PRODUCTS_PATH}'
-    bm25_csv_path = os.path.join(ROOT_DIR, "output", "bm25_scores_test.csv")
-    semantic_csv_path = os.path.join(ROOT_DIR, "output", "two_tower_scores_test.csv")
+    bm25_csv_path = f'{ROOT_DIR}/output/bm25_scores_test.csv'
+    semantic_csv_path = f'{ROOT_DIR}/output/two_tower_scores_test.csv'
     
     df_test, feature_cols = extract_test_features(examples_file, products_file, bm25_csv_path, semantic_csv_path)
 
@@ -111,7 +111,7 @@ def evaluate_model(model_weights_path):
 
     # Load the exact normalization stats from training
     print("Loading training normalization stats...")
-    norm_stats = os.path.join(ROOT_DIR, "output", "normalization_stats.json")
+    norm_stats = f"{ROOT_DIR}/output/normalization_stats.json"
     try:
         with open(norm_stats, "r") as f:
             stats = json.load(f)
@@ -149,7 +149,7 @@ def evaluate_model(model_weights_path):
     print("="*50)
     
     # Optional: Save the ranked results to look at them manually
-    df_test[['query', 'product_title', 'predicted_score', 'esci_label']].to_csv(os.path.join(ROOT_DIR, "output", "final_reranker_test_predictions.csv"), index=False)
+    df_test[['query', 'product_title', 'predicted_score', 'esci_label']].to_csv(f"{ROOT_DIR}/output/final_reranker_test_predictions.csv", index=False)
     
 if __name__ == "__main__":
     reranker_model = os.path.join(ROOT_DIR, "output", "best_esci_reranker.pth")

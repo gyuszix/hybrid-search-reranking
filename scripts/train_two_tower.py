@@ -16,13 +16,13 @@ from sentence_transformers import SentenceTransformer, InputExample, losses
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import EXAMPLES_PATH, PRODUCTS_PATH
+from config import EXAMPLES_PATH, PRODUCTS_PATH, ROOT_DIR
 
 # ----------------------
 # Settings
 # ----------------------
 MODEL_NAME = "sentence-transformers/msmarco-distilbert-base-v3"
-MODEL_SAVE_PATH = "models/two_tower_finetuned"
+MODEL_SAVE_PATH = f"{ROOT_DIR}/models/two_tower_finetuned"
 LOCALE = "us"
 BATCH_SIZE = 64
 NUM_EPOCHS = 1

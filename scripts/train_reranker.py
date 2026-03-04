@@ -11,13 +11,13 @@ from sklearn.model_selection import train_test_split
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import EXAMPLES_PATH, PRODUCTS_PATH
+from config import EXAMPLES_PATH, PRODUCTS_PATH, ROOT_DIR
 from reranking.features import extract_esci_features, PairwiseESCIDataset
 from reranking.model import DeepESCIReranker
 
 def train_model():
-    bm25_csv_path = "output/bm25_scores_train.csv"
-    semantic_csv_path = "output/two_tower_scores_train.csv"
+    bm25_csv_path = f'{ROOT_DIR}/output/bm25_scores_train.csv'
+    semantic_csv_path = f'{ROOT_DIR}/output/two_tower_scores_train.csv'
 
     df_all, feature_columns = extract_esci_features(EXAMPLES_PATH, PRODUCTS_PATH, bm25_csv_path, semantic_csv_path)
 
@@ -59,8 +59,8 @@ def train_model():
     )
 
     # Save normalization stats
-    os.makedirs("output", exist_ok=True)
-    with open("output/normalization_stats.json", "w") as f:
+    os.makedirs(f'{ROOT_DIR}/output', exist_ok=True)
+    with open(f'{ROOT_DIR}/output/normalization_stats.json', "w") as f:
         json.dump({"mean": train_dataset.mean.tolist(), "std": train_dataset.std.tolist()}, f)
         print("Saved training stats for later evaluation.")
 
@@ -117,12 +117,12 @@ def train_model():
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), "output/best_esci_reranker.pth")
+            torch.save(model.state_dict(), f'{ROOT_DIR}/output/best_esci_reranker.pth')
             print("  --> Best weights updated.")
         else:
             patience_counter += 1
             if patience_counter >= patience:
-                print("\n[!] Early stopping triggered.")
+                print("\nEarly stopping triggered.")
                 break
     return model
 
