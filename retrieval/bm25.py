@@ -113,7 +113,8 @@ def build_global_bm25_index(df_products):
         )
     
     item_ids = df_products['product_id'].tolist()
-    corpus = df_products['item_text'].apply(simple_tokenize).tolist()
+    # Fill any remaining NaNs with empty strings to prevent errors.
+    corpus = df_products['item_text'].fillna("").tolist()
 
     # bm25s uses its own C-optimized tokenizer
     corpus_tokens = bm25s.tokenize(corpus)
@@ -126,8 +127,8 @@ def build_global_bm25_index(df_products):
 
 def search_bm25_global(bm25_index, item_ids, query_text, k=TOP_K):
     """Searches the global index for a single text query."""
-    # Tokenize the single query
-    query_tokens = simple_tokenize(query_text)
+    # Use bm25s tokenizer for the query, wrapped in a list
+    query_tokens = bm25s.tokenize([query_text])
 
     # Retrieve top K results directly via sparse matrix slicing
     # retrieve() returns the integer indices and the scores
