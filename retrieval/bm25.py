@@ -4,13 +4,46 @@ import pandas as pd
 import json
 import os
 import sys
-from rank_bm25 import BM25Okapi
+from joblib import Parallel, delayed
 
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import TOP_K, ROOT_DIR
 
-
+def _score_single_group(query_id, group):
+    """
+    Helper function to score a single query's candidate set using C-Native bm25s.
+    Designed to run in parallel across multiple CPU cores.
+    """
+    query_text = group["query_text"].iloc[0]
+    item_texts = group["item_text"].tolist()
+    item_ids = group["item_id"].tolist()
+    
+    # C-Native Tokenization
+    corpus_tokens = bm25s.tokenize(item_texts)
+    query_tokens = bm25s.tokenize([query_text])
+    
+    # Build a tiny, fast index for just this candidate set
+    retriever = bm25s.BM25()
+    retriever.index(corpus_tokens)
+    
+    # Retrieve
+    doc_indices, raw_scores = retriever.retrieve(query_tokens, k=len(item_texts))
+    
+    top_k_indices = doc_indices[0]
+    top_k_scores = raw_scores[0]
+    
+    # Min-Max Normalization
+    min_score, max_score = top_k_scores.min(), top_k_scores.max()
+    if max_score - min_score > 1e-8:
+        norm_scores = (top_k_scores - min_score) / (max_score - min_score)
+    else:
+        norm_scores = np.zeros_like(top_k_scores)
+        
+    return [
+        {"query_id": query_id, "item_id": item_ids[idx], "bm25_score": float(norm_scores[i])}
+        for i, idx in enumerate(top_k_indices)
+    ]
 
 def simple_tokenize(text):
     """
@@ -26,71 +59,23 @@ def simple_tokenize(text):
 def compute_bm25_scores(df):
     """
     Compute BM25 scores within each query candidate set.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Must contain:
-            - query_id
-            - query_text
-            - item_id
-            - item_text
-
-    Returns
-    -------
-    pd.DataFrame
-        Columns:
-            - query_id
-            - item_id
-            - bm25_score (normalized per query, in [0,1])
     """
 
     required_columns = {"query_id", "query_text", "item_id", "item_text"}
     if not required_columns.issubset(df.columns):
         raise ValueError(f"DataFrame must contain columns: {required_columns}")
 
-    results = []
-
     # Group by query
     grouped = df.groupby("query_id")
 
-    for query_id, group in grouped:
+    # Run the C-native scoring across all available CPU cores
+    results_nested = Parallel(n_jobs=-1, batch_size=100)(
+        delayed(_score_single_group)(query_id, group) for query_id, group in grouped
+    )
 
-        # Extract query text
-        query_text = group["query_text"].iloc[0]
-        query_tokens = simple_tokenize(query_text)
-
-        # Tokenize candidate item texts
-        corpus = group["item_text"].apply(simple_tokenize).tolist()
-
-        if len(corpus) == 0:
-            continue
-
-        # Build BM25 index for this query's candidate set
-        bm25 = BM25Okapi(corpus)
-
-        # Compute raw BM25 scores
-        raw_scores = np.array(bm25.get_scores(query_tokens))
-
-        # Query-level min-max normalization
-        min_score = raw_scores.min()
-        max_score = raw_scores.max()
-
-        if max_score - min_score > 1e-8:
-            norm_scores = (raw_scores - min_score) / (max_score - min_score)
-        else:
-            # If all scores are identical, set to zero
-            norm_scores = np.zeros_like(raw_scores)
-
-        # Store results
-        for idx, (_, row) in enumerate(group.iterrows()):
-            results.append({
-                "query_id": query_id,
-                "item_id": row["item_id"],
-                "bm25_score": float(norm_scores[idx])
-            })
-
-    scores_df = pd.DataFrame(results)
+    # Flatten the results
+    results_flat = [item for sublist in results_nested for item in sublist]
+    scores_df = pd.DataFrame(results_flat)
 
     if scores_df.empty:
         return scores_df

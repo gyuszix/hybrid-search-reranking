@@ -51,6 +51,7 @@ def main():
             continue
 
         print(f"Computing BM25 scores for {len(df_split)} rows in the {split} set...")
+        print("This will utilize all available CPU cores via joblib")
         # Call the existing logic from bm25.py
         bm25_df = compute_bm25_scores(df_split)
         

@@ -1,5 +1,3 @@
-# scripts/train_two_tower.py
-#
 # Fine-tunes the two-tower SentenceTransformer on the ESCI train split.
 # Teaches the model to rank relevant products higher than irrelevant ones
 # by using ESCI labels as similarity scores.
