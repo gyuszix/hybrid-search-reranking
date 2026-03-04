@@ -37,14 +37,10 @@ Gyula Planky, Jian Gao, Hyuk Jin Chung
 
 ## 2nd Iteration of our Architecture
 
-<img width="716" height="663" alt="Screenshot 2026-03-03 at 19 06 37" src="https://github.com/user-attachments/assets/7d3e1622-e48d-49af-8927-7a18a5aff9ae" />
-
-<img width="716" height="608" alt="Screenshot 2026-03-03 at 19 06 28" src="https://github.com/user-attachments/assets/e45cca65-5c2f-4667-a54c-c5229e151de5" />
-
-<img width="716" height="661" alt="Screenshot 2026-03-03 at 19 06 23" src="https://github.com/user-attachments/assets/ec700fcc-558f-408d-9073-03e7286dfac1" />
-
-<img width="716" height="661" alt="Screenshot 2026-03-03 at 19 06 02" src="https://github.com/user-attachments/assets/2215ddbf-5c7f-4351-a4a0-19f1d672f0f6" />
-
+<img width="716" height="713" alt="Screenshot 2026-03-03 at 19 06 48" src="https://github.com/user-attachments/assets/6f28f390-4609-4aa5-88b8-16e25ebe1104" />
+<img width="716" height="663" alt="Screenshot 2026-03-03 at 19 06 37" src="https://github.com/user-attachments/assets/ed6933d5-990f-408f-8ac6-2348cdcb01c4" />
+<img width="716" height="608" alt="Screenshot 2026-03-03 at 19 06 28" src="https://github.com/user-attachments/assets/16b3a438-c6fa-4f34-afa0-cd9aee0364aa" />
+<img width="716" height="661" alt="Screenshot 2026-03-03 at 19 06 02" src="https://github.com/user-attachments/assets/de4f82c0-cd76-401a-8112-8e82c8abeb15" />
 
 
 ## Project Structure
