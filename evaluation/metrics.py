@@ -82,3 +82,31 @@ def recall_at_k(df_preds, df_truth, score_col, k=150, rel_threshold=0.0):
         recalls.append(hits / total_possible_hits)
 
     return np.mean(recalls) if recalls else 0.0
+
+def apply_business_ndcg_labels(df, budget_col='user_budget', price_col='price', stars_col='stars_clean'):
+    """
+    Adjusts standard ESCI labels based on business rules:
+    1. Hard penalizes items that exceed the user's explicit budget.
+    2. Soft boosts items with high review ratings to act as a tie-breaker.
+    """
+    # 1. Base ESCI mapping
+    label_map = {'E': 1.0, 'S': 0.1, 'C': 0.01, 'I': 0.0}
+    df['relevance'] = df['esci_label'].map(label_map).fillna(0.0)
+    
+    def adjust(row):
+        rel = row['relevance']
+        
+        # Rule 1: The Hard Budget Penalty
+        if row[budget_col] > 0 and row[price_col] > row[budget_col]:
+            return 0.0 # Completely irrelevant if it's over budget
+            
+        # Rule 2: The Quality Tie-Breaker (Soft Boost)
+        # Adds a tiny fraction (0.00 to 0.05) based on stars so the 
+        # NDCG ideal-sort perfectly orders items of the same label by quality
+        stars = row.get(stars_col, 4.0)
+        star_boost = (stars / 5.0) * 0.05 
+        
+        return min(rel + star_boost, 1.0)
+        
+    df['business_relevance'] = df.apply(adjust, axis=1)
+    return df
