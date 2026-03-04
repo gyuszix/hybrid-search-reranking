@@ -3,10 +3,15 @@ import numpy as np
 import pandas as pd
 import faiss
 import json
+import sys
+import os
 from sentence_transformers import SentenceTransformer
-from config import TOP_K
 
-MODEL_NAME = "models/two_tower_finetuned"
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import TOP_K, ROOT_DIR
+
+MODEL_NAME = f'{ROOT_DIR}/models/two_tower_finetuned'
 
 
 def encode_texts(model, texts, batch_size=256):
@@ -205,13 +210,13 @@ def search_tt_global(model, faiss_index, item_ids, query_text, k=TOP_K):
     ]
     return pd.DataFrame(results)
 
-def save_tt_index(faiss_index, item_ids, index_path="output/tt_index.faiss", ids_path="output/tt_ids.json"):
+def save_tt_index(faiss_index, item_ids, index_path=f'{ROOT_DIR}/output/tt_index.faiss', ids_path=f'{ROOT_DIR}/output/tt_ids.json'):
     """Saves the FAISS index and IDs to disk."""
     faiss.write_index(faiss_index, index_path)
     with open(ids_path, "w") as f:
         json.dump(item_ids, f)
 
-def load_tt_index(model_name=MODEL_NAME, index_path="output/tt_index.faiss", ids_path="output/tt_ids.json"):
+def load_tt_index(model_name=MODEL_NAME, index_path=f'{ROOT_DIR}/output/tt_index.faiss', ids_path=f'{ROOT_DIR}/output/tt_ids.json'):
     """Loads the FAISS index, IDs, and the SentenceTransformer model into memory."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = SentenceTransformer(model_name, device=device)

@@ -1,42 +1,20 @@
 import pandas as pd
 import numpy as np
 import torch
-import torch.nn as nn
 import os
 import sys
 import json
 from nltk.stem import PorterStemmer
-from config import EXAMPLES_PATH, PRODUCTS_PATH
-# Add root to path so we can import metrics
-sys.path.append(os.getcwd())
-from evaluation.metrics import ndcg_at_k
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from evaluation.metrics import ndcg_at_k, recall_at_k
+from config import EXAMPLES_PATH, PRODUCTS_PATH, ROOT_DIR
+from reranking.model import DeepESCIReranker
 
 # ==========================================
-# 1. The Exact Same Model Architecture
-# ==========================================
-# (PyTorch requires the structure to be identical to load the .pth weights)
-class DeepESCIReranker(nn.Module):
-    def __init__(self, input_dim):
-        super(DeepESCIReranker, self).__init__()
-        
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.BatchNorm1d(64), 
-            nn.ReLU(),
-            
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            
-            nn.Linear(32, 1) # Outputs a raw adjustment value
-        )
-
-    def forward(self, x):
-        final_raw_score = self.mlp(x)
-        return torch.sigmoid(final_raw_score)
-
-# ==========================================
-# 2. Test Feature Extraction
+# Test Feature Extraction
 # ==========================================
 def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_csv_path):
     print("Loading raw ESCI Parquet files...")
@@ -115,23 +93,32 @@ def extract_test_features(examples_path, products_path, bm25_csv_path, semantic_
 # ==========================================
 # 3. Main Evaluation Loop
 # ==========================================
-def evaluate_model(model_weights_path="output/best_esci_reranker.pth"):
-    examples_file = EXAMPLES_PATH
-    products_file = PRODUCTS_PATH
-    bm25_csv_path = "output/bm25_scores_test.csv" 
-    semantic_csv_path = "output/two_tower_scores_test.csv"
+def evaluate_model(model_weights_path):
+    examples_file = f'{ROOT_DIR}/{EXAMPLES_PATH}'
+    products_file = f'{ROOT_DIR}/{PRODUCTS_PATH}'
+    bm25_csv_path = f'{ROOT_DIR}/output/bm25_scores_test.csv'
+    semantic_csv_path = f'{ROOT_DIR}/output/two_tower_scores_test.csv'
     
     df_test, feature_cols = extract_test_features(examples_file, products_file, bm25_csv_path, semantic_csv_path)
 
+    # Create the Ground Truth DataFrame for Recall
+    print("Loading Ground Truth labels for Recall baseline...")
+    df_ex = pd.read_parquet(examples_file)
+    df_truth = df_ex[df_ex['split'] == 'test'].copy()
+    df_truth['query_id'] = df_truth['query_id'].astype(str)
+    label_map = {'E': 1.0, 'S': 0.1, 'C': 0.01, 'I': 0.0}
+    df_truth['relevance'] = df_truth['esci_label'].map(label_map).fillna(0.0)
+
     # Load the exact normalization stats from training
     print("Loading training normalization stats...")
+    norm_stats = f"{ROOT_DIR}/output/normalization_stats.json"
     try:
-        with open("output/normalization_stats.json", "r") as f:
+        with open(norm_stats, "r") as f:
             stats = json.load(f)
         train_mean = np.array(stats["mean"])
         train_std = np.array(stats["std"])
     except FileNotFoundError:
-        print("[!] ERROR: normalization_stats.json not found. Run training first.")
+        print("ERROR: normalization_stats.json not found. Run training first.")
         return
     
     features_raw = df_test[feature_cols].values
@@ -151,16 +138,19 @@ def evaluate_model(model_weights_path="output/best_esci_reranker.pth"):
         
     df_test['predicted_score'] = predictions
     
-    # Calculate NDCG@10 per query
-    print("Calculating NDCG@10...")
+    print("Calculating Metrics...")
     final_ndcg = ndcg_at_k(df_test, score_col='predicted_score', k=10)
+    final_recall = recall_at_k(df_test, df_truth, score_col='predicted_score', k=10)
     
+    print("\n" + "="*50)
+    print(" NEURAL RERANKER EVALUATION")
     print("="*50)
-    print(f"FINAL TEST NDCG@10: {final_ndcg:.4f}")
+    print(f"Reranker   | NDCG@10: {final_ndcg:.4f} | Recall@10: {final_recall:.4f}")
     print("="*50)
     
     # Optional: Save the ranked results to look at them manually
-    df_test[['query', 'product_title', 'predicted_score', 'esci_label']].to_csv("output/final_reranker_test_predictions.csv", index=False)
+    df_test[['query', 'product_title', 'predicted_score', 'esci_label']].to_csv(f"{ROOT_DIR}/output/final_reranker_test_predictions.csv", index=False)
     
 if __name__ == "__main__":
-    evaluate_model("output/best_esci_reranker.pth") # Make sure the file name matches
+    reranker_model = os.path.join(ROOT_DIR, "output", "best_esci_reranker.pth")
+    evaluate_model(reranker_model) # Make sure the file name matches

@@ -1,4 +1,5 @@
 # config.py
+import os
 
 EXAMPLES_PATH = "esci-data/shopping_queries_dataset/shopping_queries_dataset_examples.parquet"
 PRODUCTS_PATH = "esci-data/shopping_queries_dataset/shopping_queries_dataset_products.parquet"
@@ -10,3 +11,5 @@ USE_SPLIT = "test"
 
 # Number of top candidates to keep per query
 TOP_K = 150
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))

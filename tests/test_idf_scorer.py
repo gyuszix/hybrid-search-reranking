@@ -1,6 +1,12 @@
+import os
+import sys
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import ROOT_DIR
 
 class QuerySpecificityScorer:
     def __init__(self):
@@ -38,7 +44,7 @@ class QuerySpecificityScorer:
         return np.mean(top_k_scores)
 
 
-def run_idf_evaluation(train_csv_path="esci_train_clean.csv", test_csv_path="esci_test_clean.csv"):
+def run_idf_evaluation(train_csv_path, test_csv_path):
     print("Loading datasets...")
     # Load just the queries to save memory
     train_df = pd.read_csv(train_csv_path, usecols=['query'])
@@ -81,14 +87,16 @@ def run_idf_evaluation(train_csv_path="esci_train_clean.csv", test_csv_path="esc
     
     # 4. Save the dictionary map for the Reranker
     # This creates a lookup table so your PyTorch dataset can grab scores instantly
-    results_df.to_csv("test_queries_scored.csv", index=False)
+    results_df.to_csv(f'{ROOT_DIR}/output/IDF/test_queries_idf_scored.csv', index=False)
     print("\nSaved scores to 'test_queries_scored.csv'")
     
     return results_df
 
 if __name__ == "__main__":
-    # If you haven't generated the CSVs yet, you can pass dummy data here to test the logic
+    train_csv_path = f'{ROOT_DIR}/output/IDF/esci_train_clean.csv'
+    test_csv_path = f'{ROOT_DIR}/output/IDF/esci_test_clean.csv'
+
     try:
-        scored_test_data = run_idf_evaluation()
+        scored_test_data = run_idf_evaluation(train_csv_path, test_csv_path)
     except FileNotFoundError:
-        print("CSV files not found. Make sure you ran 'dataset_setup.py' first!")
+        print("CSV files not found. Make sure you ran 'idf_setup.py' first!")

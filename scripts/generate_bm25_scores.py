@@ -1,13 +1,18 @@
 import os
+import sys
 import pandas as pd
-from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION
-from signals.bm25 import compute_bm25_scores
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from retrieval.bm25 import compute_bm25_scores
+from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, ROOT_DIR
 
 def main():
     print("Loading raw ESCI data...")
     # Load data using paths from config.py
-    df_examples = pd.read_parquet(EXAMPLES_PATH)
-    df_products = pd.read_parquet(PRODUCTS_PATH)
+    df_examples = pd.read_parquet(f'{ROOT_DIR}/{EXAMPLES_PATH}')
+    df_products = pd.read_parquet(f'{ROOT_DIR}/{PRODUCTS_PATH}')
 
     if USE_SMALL_VERSION:
         print("Using small version of dataset...")
@@ -34,9 +39,6 @@ def main():
         "product_id": "item_id"
     })
 
-    # Ensure output directory exists
-    os.makedirs("output", exist_ok=True)
-
     # Loop through both splits to generate separate CSVs
     for split in ['train', 'test']:
         print(f"\n--- Processing '{split}' split ---")
@@ -49,6 +51,7 @@ def main():
             continue
 
         print(f"Computing BM25 scores for {len(df_split)} rows in the {split} set...")
+        print("This will utilize all available CPU cores via joblib")
         # Call the existing logic from bm25.py
         bm25_df = compute_bm25_scores(df_split)
         
@@ -57,7 +60,8 @@ def main():
             continue
             
         # Save to a distinct CSV file
-        output_file = f"output/bm25_scores_{split}.csv"
+        os.makedirs(f'{ROOT_DIR}/output', exist_ok=True)
+        output_file = f'{ROOT_DIR}/output/bm25_scores_{split}.csv'
         bm25_df.to_csv(output_file, index=False)
         print(f"Successfully saved {len(bm25_df)} BM25 scores to {output_file}")
 

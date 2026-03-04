@@ -1,15 +1,19 @@
 import os
+import sys
 import json
 import pandas as pd
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config import EXAMPLES_PATH, PRODUCTS_PATH, USE_SMALL_VERSION, USE_SPLIT
-# from signals.bm25 import compute_bm25_scores
-from signals.two_tower import compute_two_tower_scores
+# from retrieval.bm25 import compute_bm25_scores
+from retrieval.two_tower import compute_two_tower_scores
 from evaluation.metrics import ndcg_at_k, dcg
 
 
 def evaluate_signal(df, score_col, k=10):
-    df_sorted = df.sort_values(by=["query_id", score_col], ascending=[True, False])
-    score = ndcg_at_k(df_sorted, k=k)
+    score = ndcg_at_k(df, score_col=score_col, k=k)
     print(f"{score_col} NDCG@{k}: {score:.4f}")
     return score
 

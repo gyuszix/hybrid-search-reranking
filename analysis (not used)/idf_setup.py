@@ -1,7 +1,13 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
+import sys
+import os
 
-def load_and_split_esci_data(data_dir="./esci-data/shopping_queries_dataset"):
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import ROOT_DIR
+
+def load_and_split_esci_data(data_dir):
     print("Loading ESCI Parquet files...")
     # 1. Load the raw files
     df_examples = pd.read_parquet(f'{data_dir}/shopping_queries_dataset_examples.parquet')
@@ -44,10 +50,13 @@ def load_and_split_esci_data(data_dir="./esci-data/shopping_queries_dataset"):
     return train_df, val_df, test_df
 
 if __name__ == "__main__":
-    train_data, val_data, test_data = load_and_split_esci_data()
+    dir_file_path = os.path.join(ROOT_DIR, "esci-data", "shopping_queries_dataset")
+    train_data, val_data, test_data = load_and_split_esci_data(dir_file_path)
     
+    os.makedirs(f'{ROOT_DIR}/output', exist_ok=True)
+    output_dir = os.path.join(ROOT_DIR, "output")
     # Save these clean splits to CSV so you don't have to run this merge every time
-    train_data.to_csv("esci_train_clean.csv", index=False)
-    val_data.to_csv("esci_val_clean.csv", index=False)
-    test_data.to_csv("esci_test_clean.csv", index=False)
+    train_data.to_csv(f'{output_dir}/esci_train_clean.csv', index=False)
+    val_data.to_csv(f'{output_dir}/esci_val_clean.csv', index=False)
+    test_data.to_csv(f'{output_dir}/esci_test_clean.csv', index=False)
     print("Saved clean splits to CSV!")

@@ -1,43 +1,28 @@
 import os
+import sys
 import json
 import torch
-import torch.nn as nn
 import pandas as pd
 import numpy as np
 from nltk.stem import PorterStemmer
 
-# Import your custom configuration and retrieval functions
-from config import PRODUCTS_PATH, TOP_K
-from signals.bm25 import load_bm25_index, search_bm25_global
-from signals.two_tower import load_tt_index, search_tt_global
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import PRODUCTS_PATH, TOP_K, ROOT_DIR
+from retrieval.bm25 import load_bm25_index, search_bm25_global
+from retrieval.two_tower import load_tt_index, search_tt_global
+from reranking.model import DeepESCIReranker
 
 # ==========================================
-# 1. Reranker Architecture (Must Match Exactly)
-# ==========================================
-class DeepESCIReranker(nn.Module):
-    def __init__(self, input_dim):
-        super(DeepESCIReranker, self).__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.BatchNorm1d(64), 
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Linear(32, 1)
-        )
-
-    def forward(self, x):
-        return torch.sigmoid(self.mlp(x))
-
-# ==========================================
-# 2. Interactive Pipeline System
+# Interactive Pipeline System
 # ==========================================
 class SearchPipeline:
     def __init__(self, products_path, weights_path, stats_path):
         print("1. Loading Product Catalog...")
         self.df_pr = pd.read_parquet(products_path)
         self.df_pr['product_id'] = self.df_pr['product_id'].astype(str)
+        self.df_pr.set_index('product_id', inplace=True)
         
         # Optionally load ESCI-S enriched data here if you implemented it!
         # df_enriched = pd.read_parquet("esci-data/esci_s_products.parquet")
@@ -48,7 +33,7 @@ class SearchPipeline:
             self.bm25_index, self.bm25_ids = load_bm25_index()
             self.tt_model, self.tt_index, self.tt_ids = load_tt_index()
         except FileNotFoundError:
-            print("[!] Indices not found! Please run `python build_search_engine_indices.py` first.")
+            print("Indices not found! Please run `python scripts/build_indices.py` first.")
             exit(1)
         
         print("3. Loading Reranker Weights and Stats...")
@@ -57,9 +42,9 @@ class SearchPipeline:
             self.mean = np.array(stats["mean"])
             self.std = np.array(stats["std"])
             
-        # Initialize model with 9 base features (change to 12 if using price/stars)
+        # Initialize model with 9 base features
         self.model = DeepESCIReranker(input_dim=len(self.mean))
-        self.model.load_state_dict(torch.load(weights_path))
+        self.model.load_state_dict(torch.load(weights_path, weights_only=True))
         self.model.eval()
         
         self.stemmer = PorterStemmer()
@@ -84,7 +69,7 @@ class SearchPipeline:
         candidates['semantic_score'] = candidates['semantic_score'].fillna(-1.0)
         
         # 2. Add Product Metadata
-        df = pd.merge(candidates, self.df_pr, on='product_id', how='inner')
+        df = candidates.join(self.df_pr, on='product_id', how='inner').reset_index()
         df['query'] = query_text
         
         # 3. Feature Extraction (Exact same logic as training)
@@ -134,9 +119,9 @@ class SearchPipeline:
 if __name__ == "__main__":
     # Initialize the engine once
     engine = SearchPipeline(
-        products_path=PRODUCTS_PATH,
-        weights_path="best_esci_reranker.pth",
-        stats_path="output/normalization_stats.json"
+        products_path=f'{ROOT_DIR}/{PRODUCTS_PATH}',
+        weights_path=f"{ROOT_DIR}/output/best_esci_reranker.pth",
+        stats_path=f"{ROOT_DIR}/output/normalization_stats.json"
     )
     
     print("==================================================")

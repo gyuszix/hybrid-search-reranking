@@ -1,6 +1,12 @@
+import os
+import sys
 import pandas as pd
 import numpy as np
-from signals.two_tower import compute_two_tower_scores
+
+# Ensure project root is on sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from retrieval.two_tower import compute_two_tower_scores
 
 
 # ----------------------
