@@ -1,9 +1,8 @@
 # signals/bm25.py
-
+import bm25s
 import numpy as np
 import pandas as pd
-import pickle
-from rank_bm25 import BM25Okapi
+import json
 from config import TOP_K, ROOT_DIR
 
 
@@ -114,43 +113,51 @@ def build_global_bm25_index(df_products):
     
     item_ids = df_products['product_id'].tolist()
     corpus = df_products['item_text'].apply(simple_tokenize).tolist()
-    bm25_index = BM25Okapi(corpus)
+
+    # bm25s uses its own C-optimized tokenizer
+    corpus_tokens = bm25s.tokenize(corpus)
+
+    # Create and index the sparse matrix
+    bm25_index = bm25s.BM25()
+    bm25_index.index(corpus_tokens)
     
     return bm25_index, item_ids
 
 def search_bm25_global(bm25_index, item_ids, query_text, k=TOP_K):
     """Searches the global index for a single text query."""
+    # Tokenize the single query
     query_tokens = simple_tokenize(query_text)
-    raw_scores = bm25_index.get_scores(query_tokens)
+
+    # Retrieve top K results directly via sparse matrix slicing
+    # retrieve() returns the integer indices and the scores
+    doc_indices, raw_scores = bm25_index.retrieve(query_tokens, k=k)
     
-    # Get top K indices using numpy's fast sorting
-    top_k_indices = np.argsort(raw_scores)[::-1][:k]
-    top_k_scores = raw_scores[top_k_indices]
+    # Extract the first (and only) query's results
+    top_k_indices = doc_indices[0]
+    top_k_scores = raw_scores[0]
     
-    # Min-Max normalize the top K scores so they are between 0 and 1
+    # Min-Max normalize
     min_score, max_score = top_k_scores.min(), top_k_scores.max()
     if max_score - min_score > 1e-8:
         norm_scores = (top_k_scores - min_score) / (max_score - min_score)
     else:
         norm_scores = np.zeros_like(top_k_scores)
-        
+
     results = [
         {"product_id": str(item_ids[idx]), "bm25_score": float(norm_scores[i])}
         for i, idx in enumerate(top_k_indices)
     ]
     return pd.DataFrame(results)
 
-def save_bm25_index(bm25_index, item_ids, index_path=f'{ROOT_DIR}/output/bm25_index.pkl', ids_path=f'{ROOT_DIR}/output/bm25_ids.pkl'):
-    """Saves the BM25 index and IDs to disk."""
-    with open(index_path, "wb") as f:
-        pickle.dump(bm25_index, f)
-    with open(ids_path, "wb") as f:
-        pickle.dump(item_ids, f)
+def save_bm25_index(bm25_index, item_ids, index_dir=f'{ROOT_DIR}/output/bm25s_index', ids_path=f'{ROOT_DIR}/output/bm25_ids.json'):
+    # bm25s natively saves the matrix to a directory
+    bm25_index.save(index_dir)
+    with open(ids_path, "w") as f:
+        json.dump(item_ids, f)
 
-def load_bm25_index(index_path=f'{ROOT_DIR}/output/bm25_index.pkl', ids_path=f'{ROOT_DIR}/output/bm25_ids.pkl'):
-    """Loads the BM25 index and IDs from disk."""
-    with open(index_path, "rb") as f:
-        bm25_index = pickle.load(f)
-    with open(ids_path, "rb") as f:
-        item_ids = pickle.load(f)
+def load_bm25_index(index_dir=f"{ROOT_DIR}/output/bm25s_index", ids_path=f"{ROOT_DIR}/output/bm25_ids.json"):
+    # Load the matrix without loading the original raw text corpus into memory
+    bm25_index = bm25s.BM25.load(index_dir, load_corpus=False)
+    with open(ids_path, "r") as f:
+        item_ids = json.load(f)
     return bm25_index, item_ids
