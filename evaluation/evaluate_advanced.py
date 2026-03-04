@@ -192,7 +192,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     model = AdvancedDeepReranker(input_dim=len(feature_cols)).to(device)
-    model.load_state_dict(torch.load(weights_path, map_location=device))
+    model.load_state_dict(torch.load(weights_path, map_location=device, weights_only=True))
     model.eval()
 
     with torch.no_grad():

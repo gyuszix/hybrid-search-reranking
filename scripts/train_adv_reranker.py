@@ -101,7 +101,7 @@ def train_advanced_model():
                 total_val_loss += loss.item()
 
         avg_train_loss, avg_val_loss = total_train_loss/len(train_loader), total_val_loss/len(val_loader)
-        scheduler.step(avg_val_loss)
+        scheduler.step()
         print(f"Epoch [{epoch+1:02d}/{epochs}] - Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f}")
 
         if avg_val_loss < best_val_loss:
